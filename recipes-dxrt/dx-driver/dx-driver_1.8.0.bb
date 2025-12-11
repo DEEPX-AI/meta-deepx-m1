@@ -10,8 +10,8 @@ PROVIDES:${PN} = "kernel-module-${PN}"
 
 # Use gitsm:// fetcher to automatically clone with submodules (--recurse-submodules)
 # This is equivalent to: git clone --recurse-submodules git@github.com:DEEPX-AI/dx_rt_npu_linux_driver.git
-SRC_URI = "gitsm://github.com/DEEPX-AI/dx_rt_npu_linux_driver.git;protocol=https;branch=staging"
-SRCREV = "811da30f78110cf1e8120a2d1bf19de3ef3e3c60"
+SRC_URI = "gitsm://github.com/DEEPX-AI/dx_rt_npu_linux_driver.git;protocol=https;branch=main"
+SRCREV = "a90cd9616f6ebe1e10feafb1371e4ca11f0c2c48"
 S = "${WORKDIR}/git/modules"
 
 EXTRA_OEMAKE = "DEVICE=${DX_DEVICE} \

@@ -1,4 +1,4 @@
-# 🚀 meta-deepx-m1 Yocto Layer Quick Guide
+# meta-deepx-m1 Yocto Layer Quick Guide
 
 This document provides a brief overview of the structure and usage of the `meta-deepx-m1` layer, which supports the Yocto Linux image build for the DeepX M1 platform.
 

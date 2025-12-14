@@ -16,7 +16,7 @@ PACKAGECONFIG[shared_dxrt_lib] = "\
 inherit cmake
 
 # onnxruntime prebuilt library
-DEPENDS += "dx-ort"
+DEPENDS += "libonnxruntime"
 DEPENDS += "chrpath-native"
 DEPENDS += "python3"
 DEPENDS += "python3-native"

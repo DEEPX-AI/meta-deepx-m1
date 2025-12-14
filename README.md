@@ -11,7 +11,7 @@ The `meta-deepx-m1` layer is essential for building embedded Linux images that t
 Key responsibilities include:
 
 * Providing M1-specific **kernel drivers** (`dx-driver`).
-* Integrating the DeepX **Runtime (DXRT)** libraries.
+* Integrating the DeepX **Runtime (DXRT)** libraries (`dx-rt`).
 * Enabling **ONNX Runtime (ORT)** execution through DXRT.
 * Packaging DeepX **Applications** (e.g., streaming demos).
 
@@ -32,5 +32,5 @@ This layer depends on several core Yocto layers. Ensure these layers are include
 Clone this repository into your Yocto build environment's source directory:
 
 ```bash
-cd <your-yocto-build-dir>/sources
-git clone <repository-url>/meta-deepx-m1.git
+cd <your-yocto-build-dir>
+git clone https://github.com/DEEPX-AI/meta-deepx-m1.git

@@ -36,7 +36,7 @@ EXTRA_MESON_ARGS += "${@bb.utils.contains('PACKAGECONFIG', 'v3', '-Dv3_mode=true
 # List the libraries required for compiling the source code (including development headers).
 # These must align with the dependencies declared in the project's meson.build file.
 DEPENDS = " \
-    dx-runtime \
+    dx-rt \
     gstreamer1.0 \
     gstreamer1.0-plugins-base \
     opencv \
@@ -51,7 +51,7 @@ DEPENDS = " \
 # 3. Runtime Dependencies
 # List the shared libraries required for the built application to execute successfully on the target device.
 RDEPENDS:${PN} = " \
-    dx-runtime \
+    dx-rt \
     gstreamer1.0 \
     gstreamer1.0-plugins-base \
     opencv \

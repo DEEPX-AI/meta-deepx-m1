@@ -2,13 +2,13 @@
 
 ## 1. Introduction
 
-The **meta-deepx-m1** Yocto layer streamlines the integration of DeepX M1 software into existing embedded Linux build systems. 
+The `meta-deepx-m1` Yocto layer streamlines the integration of DeepX M1 software into existing embedded Linux build systems. 
 
 By embedding DeepX components directly into the Yocto workflow, this layer eliminates the need for manual makefile execution on target devices and removes concerns about build-time dependencies. This approach ensures that the DeepX software stack is:
 
-* **Seamlessly Integrated:** Aligned with the complete system image.
-* **Fully Reproducible:** Consistent builds across different environments.
-* **Production-Ready:** Ideal for scalable deployment without disrupting existing Yocto workflows.
+* **Seamlessly Integrated:** Aligned with the complete system image.  
+* **Fully Reproducible:** Consistent builds across different environments.  
+* **Production-Ready:** Ideal for scalable deployment without disrupting existing Yocto workflows.  
 
 This guide provides a reliable path for deploying DeepX hardware acceleration capabilities directly into your system image.
 
@@ -17,7 +17,7 @@ This guide provides a reliable path for deploying DeepX hardware acceleration ca
 Before integrating the `meta-deepx-m1` layer, ensure the following prerequisites are satisfied to guarantee a smooth setup process:
 
 ### 2.1. Yocto Project Environment
-A functional Yocto Project environment is required. This typically includes:
+A functional Yocto Project environment is required. This typically includes:  
 * The **Poky** build system.
 * A valid machine configuration provided by your hardware vendor (BSP).
 * *Note: Most hardware vendors provide a customized Yocto build environment that includes board support packages and integration scripts.*
@@ -49,20 +49,20 @@ cd /path/to/yocto/sources/
 
 # Clone the repository
 git clone -b scarthgap https://github.com/DEEPX-AI/meta-deepx-m1.git
-````
+```
 
 ### 3.2. Register the Layer
 
 Add the layer path to your build configuration file (`conf/bblayers.conf`).
 
-**Option A: Using bitbake-layers (Recommended)**
+**Option A: Using bitbake-layers (Recommended)**  
 Execute the following command from your build directory:
 
 ```bash
 bitbake-layers add-layer ../sources/meta-deepx-m1
 ```
 
-**Option B: Manual Edit**
+**Option B: Manual Edit**  
 Open `conf/bblayers.conf` and append the full path:
 
 ```bitbake
@@ -73,7 +73,7 @@ BBLAYERS ?= " \
   "
 ```
 
-## 4\. Configuration
+## 4. Configuration
 
 To deploy the NPU components onto the target root filesystem, you must include them in your image configuration.
 
@@ -89,10 +89,10 @@ IMAGE_INSTALL:append = " dx-driver dx-rt dx-stream"
 
 ```
 
-> **⚠️ Important Note on Dependencies:**
+> **⚠️ Important Note on Dependencies:**  
 > This layer includes `libonnxruntime` (v1.20.1). If your project uses another layer (e.g., `meta-oe`) that provides a different version of ONNX Runtime, please ensure `meta-deepx-m1` has a **higher priority** in `conf/layer.conf` to utilize the tested version provided here.
 
-## 5\. Build
+## 5. Build
 
 Build your target image using `bitbake`.
 
@@ -101,7 +101,7 @@ Build your target image using `bitbake`.
 bitbake core-image-minimal
 ```
 
-## 6\. Verification
+## 6. Verification
 
 Once the image is built and flashed onto the target device, verify the installation using the following steps.
 
@@ -137,38 +137,27 @@ Run the status command:
 dxrt-cli -s
 ```
 
-**Expected Output:**
-You should see a status report similar to the following. Please verify that the **DXRT** and **RT Driver version** match the target release numbers.
+**Expected Output:**  
+You should see a status report similar to the following. Please verify that the **DX-RT** and **RT Driver version** match the target release numbers.  
 
 ```text
-DXRT v3.1.0
+DX-RT v3.x.x
 =======================================================
  * Device 0: M1, Accelerator type
----------------------    Version    ---------------------
- * RT Driver version   : v1.8.0
- * PCIe Driver version : v1.5.1
--------------------------------------------------------
- * FW version          : v2.4.0
---------------------- Device Info ---------------------
- * Memory : LPDDR5 5600 Mbps, 3.92GiB
- * Board  : M.2, Rev 1.0
- * Chip Offset : 0
- * PCIe    : Gen3 X4
-
-NPU 0: voltage 750 mV, clock 1000 MHz, temperature 43'C
-NPU 1: voltage 750 mV, clock 1000 MHz, temperature 42'C
-NPU 2: voltage 750 mV, clock 1000 MHz, temperature 42'C
+-------------------    Version    ---------------------
+...
 =======================================================
 ```
 
-> **Note:** If `dxrt-cli` returns an error or fails to open the device, please ensure the kernel driver is loaded (Refer to Section 6.1).
+> **Note:**  
+> If `dxrt-cli` returns an error or fails to open the device, please ensure the kernel driver is loaded (Refer to Section 6.1).
 
-To verify that the dx-stream plugin is correctly installed, execute the following command:
+o verify that the dx-stream plugin is correctly installed, execute the following command:
 
 ```bash
 gst-inspect-1.0 dxstream | grep dx
 ```
 **Expected Output:**  The command should display the plugin details (such as dxvideosink, dxvideodec) without returning a "no such element" error.
 
-
-
+---
+    

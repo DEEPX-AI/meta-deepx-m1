@@ -13,7 +13,7 @@ SRC_URI = "git://github.com/DEEPX-AI/dx_stream.git;protocol=https;branch=main"
 SRCREV = "875b63eec792192822e088f3c6324e55a945b58d"
 
 # Inherit the meson.bbclass to handle the Meson build system.
-inherit meson
+inherit meson pkgconfig
 
 
 
@@ -25,7 +25,7 @@ MESON_SOURCEPATH = "${S}/gst-dxstream-plugin"
 # 2. V3 Mode Configuration (Conditional Build Option)
 # In Yocto, we use PACKAGECONFIG or a simple variable to handle options like '--v3'.
 # Default is off, but can be enabled via local.conf or by uncommenting below:
-# PACKAGECONFIG ??= "v3"
+PACKAGECONFIG ??= ""
 PACKAGECONFIG[v3] = "-Dv3_mode=true,-Dv3_mode=false"
 
 # Alternatively, if you want it always based on a variable:
@@ -35,6 +35,7 @@ EXTRA_MESON_ARGS += "${@bb.utils.contains('PACKAGECONFIG', 'v3', '-Dv3_mode=true
 # 2. Build-time Dependencies
 # List the libraries required for compiling the source code (including development headers).
 # These must align with the dependencies declared in the project's meson.build file.
+DEPENDS = "meson-native ninja-native"
 DEPENDS = " \
     dx-rt \
     gstreamer1.0 \
@@ -69,14 +70,72 @@ RDEPENDS:${PN} = " \
 # Meson handles the installation typically to /usr/bin for executables and 
 # /usr/lib for libraries, so a custom do_install function is usually not needed.
 
-# V3 Option
-PACKAGECONFIG ??= ""
-PACKAGECONFIG[v3] = "-Dv3_mode=true,-Dv3_mode=false"
-EXTRA_MESON_ARGS += "${@bb.utils.contains('PACKAGECONFIG', 'v3', '-Dv3_mode=true', '-Dv3_mode=false', d)}"
 
-# 3. [FIX] Packaging Configuration
-# Include the GStreamer plugin shared object in the main package
-FILES:${PN} += "${libdir}/gstreamer-1.0/*.so"
+# Build custom_library after gst-dxstream-plugin
+do_compile:append() {
+    bbnote "Installing gst-dxstream-plugin headers for custom_library..."
 
-# (If static libraries are generated, put them in staticdev)
+    # Install gst-dxstream-plugin with correct prefix
+    cd ${B}
+    meson configure --prefix=${S}/install
+    DESTDIR="" meson install
+
+    bbnote "Building custom_library postprocess libraries..."
+
+    # Build each postprocess library with proper cross-compile settings
+    for subdir in ${S}/dx_stream/custom_library/postprocess_library/*/; do
+        if [ -d "$subdir" ] && [ -f "$subdir/meson.build" ]; then
+            bbnote "Building $(basename $subdir)..."
+            cd "$subdir"
+
+            meson setup build \
+                --buildtype=release \
+                --prefix=${S}/install \
+                --cross-file ${WORKDIR}/meson.cross
+
+            ninja -C build
+            DESTDIR="" ninja -C build install
+            rm -rf build
+        fi
+    done
+}
+
+do_install() {
+    # Install gst-dxstream-plugin outputs (from meson install)
+    # Meson already installs to ${D}, so just copy additional custom_library outputs
+
+    # install dx_stream to /usr/lib
+    if [ -d "${S}/install/lib/gstreamer-1.0" ]; then
+        install -d ${D}${libdir}/gstreamer-1.0
+        cp -r ${S}/install/lib/gstreamer-1.0/* ${D}${libdir}/gstreamer-1.0/ || true
+    fi
+
+    # Install postprocess plugins to libdir instead of datadir to avoid QA warning
+    if [ -d "${S}/install/lib/postprocess" ]; then
+        install -d ${D}${datadir}/dx-stream/lib
+        cp -r ${S}/install/lib/postprocess/* ${D}${datadir}/dx-stream/lib/ || true
+    fi
+
+    # include
+    if [ -d "${S}/install/include" ]; then
+        install -d ${D}${prefix}/include
+        cp -r ${S}/install/include/* ${D}${prefix}/include/ || true
+    fi
+}
+
+# Packaging Configuration
+FILES:${PN} += " \
+    ${libdir}/gstreamer-1.0/*.so \
+    ${datadir}/dx-stream/* \
+"
+
+FILES:${PN}-dev += " \
+    ${includedir}/* \
+"
+
 FILES:${PN}-staticdev += "${libdir}/gstreamer-1.0/*.a"
+
+# Disable QA checks for plugins that depend on files within same package
+INSANE_SKIP:${PN} += "libdir file-rdeps"
+INSANE_SKIP:${PN}-dbg += "libdir"
+

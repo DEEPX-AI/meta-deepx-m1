@@ -1,23 +1,46 @@
-# Quick Start Guide: DEEPX M1 NPU Runtime Integration
+# Quick Start Guide: DEEPX M1 NPU Integration
 
-This document serves as a step-by-step guide for integrating the **DEEPX M1 NPU Runtime Layer** into your Yocto Project environment using the official repository.
+## 1. Introduction
 
-## 1. Layer Overview
+The **meta-deepx-m1** Yocto layer streamlines the integration of DeepX M1 software into existing embedded Linux build systems. 
 
-The `meta-deepx-m1` layer provides the essential drivers, runtime libraries, and streaming components required to operate the **DX-M1** accelerator.
+By embedding DeepX components directly into the Yocto workflow, this layer eliminates the need for manual makefile execution on target devices and removes concerns about build-time dependencies. This approach ensures that the DeepX software stack is:
 
-### Component Summary
+* **Seamlessly Integrated:** Aligned with the complete system image.
+* **Fully Reproducible:** Consistent builds across different environments.
+* **Production-Ready:** Ideal for scalable deployment without disrupting existing Yocto workflows.
 
-| Component | Package Name | Description |
-| :--- | :--- | :--- |
-| **Driver** | `dx-driver` | Kernel module for the NPU device |
-| **Runtime** | `dx-rt` | Userspace runtime API & libraries |
-| **Stream** | `dx-stream` | Streaming pipeline framework |
-| **External** | `libonnxruntime` | ONNX Runtime dependency (v1.20.1) |
+This guide provides a reliable path for deploying DeepX hardware acceleration capabilities directly into your system image.
 
-## 2. Installation
+## 2. Prerequisites
 
-### 2.1. Clone the Repository
+Before integrating the `meta-deepx-m1` layer, ensure the following prerequisites are satisfied to guarantee a smooth setup process:
+
+### 2.1. Yocto Project Environment
+A functional Yocto Project environment is required. This typically includes:
+* The **Poky** build system.
+* A valid machine configuration provided by your hardware vendor (BSP).
+* *Note: Most hardware vendors provide a customized Yocto build environment that includes board support packages and integration scripts.*
+
+### 2.2. Initialized Build Directory
+The build directory (e.g., `build/`) must be initialized using the scripts provided by your vendor’s BSP or development kit. It must contain valid configuration files:
+* `conf/local.conf`
+* `conf/bblayers.conf`
+
+### 2.3. System Resources
+Building DeepX-enabled images can demand significant compute resources.
+* **RAM:** Minimum 16 GB recommended.
+* **Storage:** At least 100 GB of available disk space.
+
+### 2.4. Skill Requirements
+Developers should have working knowledge of core Yocto operations, including:
+* Invoking builds via `bitbake`.
+* Editing configuration files (`local.conf`).
+* Managing layers using `bitbake-layers`.
+
+## 3. Installation
+
+### 3.1. Clone the Repository
 Clone the `meta-deepx-m1` repository into your Yocto source directory (e.g., `sources/`).
 
 ```bash
@@ -25,17 +48,10 @@ Clone the `meta-deepx-m1` repository into your Yocto source directory (e.g., `so
 cd /path/to/yocto/sources/
 
 # Clone the repository
-git clone [https://github.com/DEEPX-AI/meta-deepx-m1.git](https://github.com/DEEPX-AI/meta-deepx-m1.git)
+git clone -b scarthgap https://github.com/DEEPX-AI/meta-deepx-m1.git
 ````
 
-> **Note:** If you are using a specific Yocto release (e.g., Scarthgap, Kirkstone), please check out the corresponding branch after cloning:
->
-> ```bash
-> cd meta-deepx-m1
-> git checkout <branch-name>  # e.g., git checkout scarthgap
-> ```
-
-### 2.2. Register the Layer
+### 3.2. Register the Layer
 
 Add the layer path to your build configuration file (`conf/bblayers.conf`).
 
@@ -57,7 +73,7 @@ BBLAYERS ?= " \
   "
 ```
 
-## 3\. Configuration
+## 4\. Configuration
 
 To deploy the NPU components onto the target root filesystem, you must include them in your image configuration.
 
@@ -71,14 +87,12 @@ Open `conf/local.conf` (or your specific image recipe) and append the following 
 # Install Driver, Runtime, and Streamer
 IMAGE_INSTALL:append = " dx-driver dx-rt dx-stream"
 
-# (Optional) Install debugging tools if available
-# IMAGE_INSTALL:append = " dx-tools"
 ```
 
 > **⚠️ Important Note on Dependencies:**
 > This layer includes `libonnxruntime` (v1.20.1). If your project uses another layer (e.g., `meta-oe`) that provides a different version of ONNX Runtime, please ensure `meta-deepx-m1` has a **higher priority** in `conf/layer.conf` to utilize the tested version provided here.
 
-## 4\. Build
+## 5\. Build
 
 Build your target image using `bitbake`.
 
@@ -87,45 +101,74 @@ Build your target image using `bitbake`.
 bitbake core-image-minimal
 ```
 
-## 5\. Verification
+## 6\. Verification
 
 Once the image is built and flashed onto the target device, verify the installation using the following steps.
 
-### 5.1. Check Kernel Driver
+### 6.1. Check Kernel Driver
 
 Confirm that the NPU kernel module is loaded.
 
 ```bash
 lsmod | grep dx
-# Expected Output: dx_driver    <size>  0
+# Expected Output:
+# dxrt_driver    <size>  0
+# dx_dma         <size>  1  dxrt_driver
 ```
 
-*If the module is not loaded automatically, try running `modprobe dx_driver`.*
+*If the module is not loaded automatically, try running `modprobe dxrt_driver` (or `dx_driver` depending on your specific kernel module name).*
 
-### 5.2. Check Libraries
+### 6.2. Check Libraries
 
 Verify that the shared libraries are present in the system path (`/usr/lib` or `/usr/lib64`).
 
 ```bash
-ls -l /usr/lib/libdx_rt.so*
-ls -l /usr/lib/libdx_stream.so*
+ls -l /usr/lib/libdxrt.so*
+ls -l /usr/lib/gstreamer-1.0/libgstdxstream.so*
 ```
 
-### 5.3. Check Installed Versions
+### 6.3. Check Installed Versions
 
-If your image includes a package manager, you can query the installed package versions.
+The `dx-rt` package provides a command-line utility named `dxrt-cli` to inspect the system status. This is the recommended method to verify that all components (Runtime, Driver, Firmware, and Hardware) are correctly synchronized.
+
+Run the status command:
 
 ```bash
-# For opkg users
-opkg list-installed | grep dx-
-
-# Expected Output (Example):
-# dx-driver - 1.8.0
-# dx-rt - 3.1.0
-# dx-stream - 2.1.0
+dxrt-cli -s
 ```
 
------
+**Expected Output:**
+You should see a status report similar to the following. Please verify that the **DXRT** and **RT Driver version** match the target release numbers.
 
-**Support & Troubleshooting**
-For issues related to the repository or build failures, please check the [Issues](https://www.google.com/search?q=https://github.com/DEEPX-AI/meta-deepx-m1/issues) tab on the GitHub repository.
+```text
+DXRT v3.1.0
+=======================================================
+ * Device 0: M1, Accelerator type
+---------------------    Version    ---------------------
+ * RT Driver version   : v1.8.0
+ * PCIe Driver version : v1.5.1
+-------------------------------------------------------
+ * FW version          : v2.4.0
+--------------------- Device Info ---------------------
+ * Memory : LPDDR5 5600 Mbps, 3.92GiB
+ * Board  : M.2, Rev 1.0
+ * Chip Offset : 0
+ * PCIe    : Gen3 X4
+
+NPU 0: voltage 750 mV, clock 1000 MHz, temperature 43'C
+NPU 1: voltage 750 mV, clock 1000 MHz, temperature 42'C
+NPU 2: voltage 750 mV, clock 1000 MHz, temperature 42'C
+=======================================================
+```
+
+> **Note:** If `dxrt-cli` returns an error or fails to open the device, please ensure the kernel driver is loaded (Refer to Section 6.1).
+
+To verify that the dx-stream plugin is correctly installed, execute the following command:
+
+```bash
+gst-inspect-1.0 dxstream | grep dx
+```
+**Expected Output:**  The command should display the plugin details (such as dxvideosink, dxvideodec) without returning a "no such element" error.
+
+
+

@@ -152,7 +152,7 @@ DX-RT v3.x.x
 > **Note:**  
 > If `dxrt-cli` returns an error or fails to open the device, please ensure the kernel driver is loaded (Refer to Section 6.1).
 
-o verify that the dx-stream plugin is correctly installed, execute the following command:
+To verify that the dx-stream plugin is correctly installed, execute the following command:
 
 ```bash
 gst-inspect-1.0 dxstream | grep dx

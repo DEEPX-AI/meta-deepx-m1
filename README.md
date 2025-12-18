@@ -34,3 +34,11 @@ Clone this repository into your Yocto build environment's source directory:
 ```bash
 cd <your-yocto-build-dir>
 git clone -b scarthgap https://github.com/DEEPX-AI/meta-deepx-m1.git
+```
+
+## 4. Documentation  
+
+For more detailed setup instructions and examples, please refer to the following documentation:  
+
+* [Quick Guide](https://github.com/DEEPX-AI/meta-deepx-m1/blob/scarthgap/docs/quick_guide.md)
+

@@ -5,7 +5,9 @@ LICENSE = "Proprietary"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=df0ebe3edba67d21cb2e798ef0ee2905"
 
 # do_fetch source
-SRC_URI = "git://github.com/DEEPX-AI/dx_rt.git;protocol=https;branch=main"
+SRC_URI = "git://github.com/DEEPX-AI/dx_rt.git;protocol=https;branch=main \
+           file://0001-fix-terminate.patch \
+        "
 SRCREV = "969742dbf71bdb6a08cf23f2260f88284f280c86"
 
 S = "${WORKDIR}/git"

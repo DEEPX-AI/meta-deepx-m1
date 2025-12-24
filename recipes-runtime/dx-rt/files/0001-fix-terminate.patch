@@ -1,0 +1,30 @@
+--- a/lib/device_pool/acc_device_task_layer.cpp
++++ b/lib/device_pool/acc_device_task_layer.cpp
+@@ -774,7 +774,19 @@
+ #endif
+         _eventThread.join();
+     }
++
+     Terminate();
++
++    // yocto weston block issue
++#if 1
++    for(auto &ot : _outputDispatcher)
++    {
++        ot.detach();
++    }
++    _outputDispatcher.clear();
++    return;
++#else
++    // original code
+     size_t outputDispatcher_size = _outputDispatcher.size();
+     for (size_t i = 0; i < outputDispatcher_size; i++)
+     {
+@@ -789,6 +801,7 @@
+         _outputDispatcher[i].join();
+     }
+     _outputDispatcher.clear();
++#endif // output detach issue
+ }
+ 
+ void AccDeviceTaskLayer::ProcessResponseFromService(const dxrt::_dxrt_response_t& response)

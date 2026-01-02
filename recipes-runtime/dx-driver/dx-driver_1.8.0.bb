@@ -42,8 +42,16 @@ do_install() {
     if [ -f ${S}/dx_dma.conf ]; then
         install -m 0644 ${S}/dx_dma.conf ${D}${sysconfdir}/modprobe.d/
     fi
+
+    # Create and install udev rules for device node access permissions
+    # This rule sets the mode of /dev/dxrt* to 0666 (read/write for everyone)
+    install -d ${D}${sysconfdir}/udev/rules.d
+    echo 'KERNEL=="dxrt*", MODE="0666"' > ${D}${sysconfdir}/udev/rules.d/99-dx-dma.rules
 }
 
 # Explicitly declare files to be packaged
 FILES:${PN} += "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/*.ko"
 FILES:${PN} += "${sysconfdir}/modprobe.d/dx_dma.conf"
+
+# Add udev rules file to the package
+FILES:${PN} += "${sysconfdir}/udev/rules.d/99-dx-dma.rules"

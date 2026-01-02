@@ -41,4 +41,3 @@ git clone -b scarthgap https://github.com/DEEPX-AI/meta-deepx-m1.git
 For more detailed setup instructions and examples, please refer to the following documentation:  
 
 * [Quick Guide](https://github.com/DEEPX-AI/meta-deepx-m1/blob/scarthgap/docs/quick_guide.md)
-

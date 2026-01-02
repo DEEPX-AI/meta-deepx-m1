@@ -87,7 +87,41 @@ BBLAYERS ?= " \
 
 ```
 
----
+## 4. Configuration
+
+To deploy the NPU components onto the target root filesystem, you must include them in your image configuration.
+
+Open `conf/local.conf` (or your specific image recipe) and append the following lines:
+
+```bitbake
+# -------------------------------------------
+# DEEPX M1 NPU Configuration
+# -------------------------------------------
+
+# Install Driver, Runtime, and Streamer
+IMAGE_INSTALL:append = " dx-driver dx-rt dx-stream"
+
+```
+
+> **⚠️ Important Note on Dependencies:**  
+> This layer includes `libonnxruntime` (v1.20.1). If your project uses another layer (e.g., `meta-oe`) that provides a different version of ONNX Runtime, please ensure `meta-deepx-m1` has a **higher priority** in `conf/layer.conf` to utilize the tested version provided here.
+
+## 5. Build
+
+Build your target image using `bitbake`.
+
+```bash
+# Example for a standard minimal image
+bitbake core-image-minimal
+```
+
+## 6. Verification
+
+Once the image is built and flashed onto the target device, verify the installation using the following steps.
+
+### 6.1. Check Kernel Driver
+
+Confirm that the NPU kernel module is loaded.
 
 ## 4. Configuration
 
@@ -161,44 +195,3 @@ You should see a status report similar to the following. Please verify that the 
 
 ```text
 DX-RT v3.x.x
-=======================================================
- * Device 0: M1, Accelerator type
--------------------    Version    ---------------------
-...
-=======================================================
-```
-
-> **Note:**  
-> If `dxrt-cli` returns an error or fails to open the device, please ensure the kernel driver is loaded (Refer to Section 6.1).  
-
-To verify that the dx-stream plugin is correctly installed, execute the following command:
-Verify that the **dx-stream** plugin is correctly recognized by GStreamer:  
-
-```bash
-gst-inspect-1.0 dxstream | grep dx
-
-```
-**Expected Output:**  The command should display the plugin details (such as dxvideosink, dxvideodec) without returning a "no such element" error.
-
----
-
-### 6.4. Run the Sample Demo
-
-The `dx-stream-sample` package provides a pre-configured demonstration script. Running this script confirms that the NPU, Runtime, and Streamer are working together correctly.
-
-Navigate to the sample directory and execute the demo:
-
-```bash
-# Navigate to the sample directory
-cd /etc/dx-stream-sample/
-
-# Execute the demo script
-./run.sh
-
-```
-
-**Expected Results:**
-
-* The script initializes the DeepX-accelerated GStreamer pipeline.
-* Inference results (e.g., object detection bounding boxes) should be visible or logged, depending on the sample configuration.
-* **Note:** Ensure a display manager (like Weston) is running if the sample is configured for visual output.

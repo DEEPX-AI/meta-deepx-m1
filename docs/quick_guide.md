@@ -62,7 +62,6 @@ cd /path/to/yocto/sources/
 
 # Clone the repository
 git clone -b scarthgap https://github.com/DEEPX-AI/meta-deepx-m1.git
-
 ```
 
 ### 3.2. Register the Layer
@@ -73,7 +72,6 @@ Add the layer path to your build configuration file (`conf/bblayers.conf`).
 
 ```bash
 bitbake-layers add-layer ../sources/meta-deepx-m1
-
 ```
 
 **Option B: Manual Edit** Open `conf/bblayers.conf` and append the full path:
@@ -84,44 +82,7 @@ BBLAYERS ?= " \
   /home/user/yocto/sources/poky/meta-poky \
   /home/user/yocto/sources/meta-deepx-m1 \
   "
-
 ```
-
-## 4. Configuration
-
-To deploy the NPU components onto the target root filesystem, you must include them in your image configuration.
-
-Open `conf/local.conf` (or your specific image recipe) and append the following lines:
-
-```bitbake
-# -------------------------------------------
-# DEEPX M1 NPU Configuration
-# -------------------------------------------
-
-# Install Driver, Runtime, and Streamer
-IMAGE_INSTALL:append = " dx-driver dx-rt dx-stream"
-
-```
-
-> **⚠️ Important Note on Dependencies:**  
-> This layer includes `libonnxruntime` (v1.20.1). If your project uses another layer (e.g., `meta-oe`) that provides a different version of ONNX Runtime, please ensure `meta-deepx-m1` has a **higher priority** in `conf/layer.conf` to utilize the tested version provided here.
-
-## 5. Build
-
-Build your target image using `bitbake`.
-
-```bash
-# Example for a standard minimal image
-bitbake core-image-minimal
-```
-
-## 6. Verification
-
-Once the image is built and flashed onto the target device, verify the installation using the following steps.
-
-### 6.1. Check Kernel Driver
-
-Confirm that the NPU kernel module is loaded.
 
 ## 4. Configuration
 
@@ -136,7 +97,6 @@ Open `conf/local.conf` (or your specific image recipe) and append the following 
 
 # Install Driver, Runtime, Streamer, and Streamer's sample
 IMAGE_INSTALL:append = " dx-driver dx-rt dx-stream dx-stream-sample"
-
 ```
 
 > **⚠️ Important Note on Dependencies:** > This layer includes `libonnxruntime` (v1.20.1). If your project uses another layer (e.g., `meta-oe`) that provides a different version of ONNX Runtime, please ensure `meta-deepx-m1` has a **higher priority** in `conf/layer.conf` to utilize the tested version provided here.
@@ -150,7 +110,6 @@ Build your target image using `bitbake`.
 ```bash
 # Example for weston image
 bitbake core-image-weston
-
 ```
 
 ---
@@ -168,7 +127,6 @@ lsmod | grep dx
 # Expected Output:
 # dxrt_driver    <size>  0
 # dx_dma         <size>  1  dxrt_driver
-
 ```
 
 ### 6.2. Check Libraries
@@ -178,7 +136,6 @@ Verify that the shared libraries are present in the system path.
 ```bash
 ls -l /usr/lib/libdxrt.so*
 ls -l /usr/lib/gstreamer-1.0/libgstdxstream.so*
-
 ```
 
 ### 6.3. Check Installed Versions
@@ -195,3 +152,5 @@ You should see a status report similar to the following. Please verify that the 
 
 ```text
 DX-RT v3.x.x
+...
+```

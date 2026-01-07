@@ -47,6 +47,7 @@ DEPENDS = " \
     mosquitto \
     librdkafka \
     pkgconfig-native \
+    libeigen \
 "
 
 # 3. Runtime Dependencies

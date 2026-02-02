@@ -1,0 +1,26 @@
+--- a/lib/device_pool/acc_device_task_layer.cpp
++++ b/lib/device_pool/acc_device_task_layer.cpp
+@@ -859,6 +859,15 @@
+         _eventThread.join();
+     }
+     Terminate();
++
++    // yocto weston block issue
++#if 1
++    for(auto &ot : _outputDispatcher)
++    {
++        ot.detach();
++    }
++    _outputDispatcher.clear();
++#else
+     size_t outputDispatcher_size = _outputDispatcher.size();
+     for (size_t i = 0; i < outputDispatcher_size; i++)
+     {
+@@ -873,6 +882,7 @@
+         _outputDispatcher[i].join();
+     }
+     _outputDispatcher.clear();
++#endif // yocto termination
+ }
+
+

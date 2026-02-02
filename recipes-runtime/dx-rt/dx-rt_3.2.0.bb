@@ -6,13 +6,11 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=df0ebe3edba67d21cb2e798ef0ee2905"
 
 # do_fetch source
 SRC_URI = "git://github.com/DEEPX-AI/dx_rt.git;protocol=https;branch=main \
-           file://0001-fix-terminate.patch \
-           file://0002-python-build.patch \
-           file://0003-python-build.patch \
-           file://0004-python-version.patch \
-           file://setup_1.1.1.py \
+            file://0101-fix-terminate.patch \
+            file://0102-python-build.patch \
+            file://setup_1.1.4.py \
         "
-SRCREV = "969742dbf71bdb6a08cf23f2260f88284f280c86"
+SRCREV = "6a0052e6266f4b0a13d001fb90e5a7721d57520d"
 
 S = "${WORKDIR}/git"
 
@@ -71,7 +69,7 @@ INSANE_SKIP:${PN} += "installed-vs-shipped"
 
 do_configure:prepend() {
     # Copy setup.py from WORKDIR to the python_package folder in the git source
-    cp ${WORKDIR}/setup_1.1.1.py ${S}/python_package/setup.py
+    cp ${WORKDIR}/setup_1.1.4.py ${S}/python_package/setup.py
 
     # 2. Remove existing pyproject.toml (to prevent conflicts)
     # -f option: Proceed without error even if the file does not exist

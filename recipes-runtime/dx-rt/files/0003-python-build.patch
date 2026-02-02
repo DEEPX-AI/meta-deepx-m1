@@ -1,0 +1,11 @@
+--- a/python_package/src/dx_engine/capi/CMakeLists.txt
++++ b/python_package/src/dx_engine/capi/CMakeLists.txt
+@@ -54,7 +54,7 @@
+   ${CMAKE_SOURCE_DIR}/../../../../extern/include
+ )
+ 
+-find_package(pybind11 REQUIRED)
++#find_package(pybind11 REQUIRED)
+ 
+ 
+ pybind11_add_module( ${target} 

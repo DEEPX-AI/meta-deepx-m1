@@ -97,6 +97,12 @@ Open `conf/local.conf` (or your specific image recipe) and append the following 
 
 # Install Driver, Runtime, Streamer, and Streamer's sample
 IMAGE_INSTALL:append = " dx-driver dx-rt dx-stream dx-stream-sample"
+IMAGE_INSTALL:append = " libonnxruntime libyuv"
+
+# GStreamer 1.0 related options need to be added.
+
+# include ncurses-term for dxtop
+CORE_IMAGE_EXTRA_INSTALL += "ncurses-terminfo-base"
 ```
 
 > **⚠️ Important Note on Dependencies:** > This layer includes `libonnxruntime` (v1.20.1). If your project uses another layer (e.g., `meta-oe`) that provides a different version of ONNX Runtime, please ensure `meta-deepx-m1` has a **higher priority** in `conf/layer.conf` to utilize the tested version provided here.

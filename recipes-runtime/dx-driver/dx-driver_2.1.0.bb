@@ -12,6 +12,7 @@ PROVIDES:${PN} = "kernel-module-${PN}"
 # This is equivalent to: git clone --recurse-submodules git@github.com:DEEPX-AI/dx_rt_npu_linux_driver.git
 SRC_URI = "gitsm://github.com/DEEPX-AI/dx_rt_npu_linux_driver.git;protocol=https;branch=main \
             file://0001-fix-nents-passed-to-dma_unmap_sg.patch \
+            file://0002-fix-tasklet-completion-cancellation.patch \
         "
 SRCREV = "6452e7424515655fa79ae8dfdfb1b5245ec88879"
 S = "${WORKDIR}/git/modules"

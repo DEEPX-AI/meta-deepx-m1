@@ -1,0 +1,13 @@
+[Unit]
+Description=DX-RT Service
+
+[Service]
+ExecStart=/usr/bin/dxrtd
+WorkingDirectory=/usr/bin/
+Restart=on-failure
+RestartSec=2s
+
+[Install]
+WantedBy=multi-user.target
+
+

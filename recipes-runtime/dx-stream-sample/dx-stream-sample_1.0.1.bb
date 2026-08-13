@@ -5,7 +5,10 @@ LICENSE = "CLOSED"
 
 SRC_URI = "file://dx-stream-sample_1.0.1.tar.gz;unpack=0"
 
-S = "${WORKDIR}"
+# walnascar: S = "${WORKDIR}" is no longer supported (insane.bbclass fatal).
+# This recipe has no real source tree; the tarball lands in UNPACKDIR, so point
+# S there (a WORKDIR subdir, allowed). Matches libonnxruntime_1.20.1.bb.
+S = "${UNPACKDIR}"
 
 # Defined installation path
 SAMPLE_DEST_DIR = "/etc/dx-stream-sample"
@@ -19,7 +22,8 @@ do_install() {
     # 2. Extract with flags to discard host UID/GID information
     # --no-same-owner: Don't try to preserve the UID/GID from the tarball
     # --no-same-permissions: Use default umask for permissions
-    tar --no-same-owner --no-same-permissions -xf ${WORKDIR}/dx-stream-sample_1.0.1.tar.gz -C ${D}${SAMPLE_DEST_DIR} --strip-components=1
+    # walnascar: SRC_URI local files (unpack=0 included) land in UNPACKDIR, not WORKDIR
+    tar --no-same-owner --no-same-permissions -xf ${UNPACKDIR}/dx-stream-sample_1.0.1.tar.gz -C ${D}${SAMPLE_DEST_DIR} --strip-components=1
 
     # 3. Explicitly force root ownership just to be safe (Pseudo/Fakeroot handles this)
     chown -R root:root ${D}${SAMPLE_DEST_DIR}

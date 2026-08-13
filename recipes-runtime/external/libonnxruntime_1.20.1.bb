@@ -18,7 +18,10 @@ SRC_URI = "https://github.com/microsoft/onnxruntime/releases/download/v${ONNX_VE
 # SHA256 checksum for selected architecture
 SRC_URI[onnxruntime.sha256sum] = "ae4fedbdc8c18d688c01306b4b50c63de3445cdf2dbd720e01a2fa3810b8106a"
 
-S = "${WORKDIR}"
+# walnascar: SRC_URI archives are unpacked into UNPACKDIR, so the extracted
+# ${ONNX_PACKAGE_FOLDER} lives there. do_install runs in B=S, and references the
+# folder relative to cwd, so point S at UNPACKDIR (was "${WORKDIR}" on scarthgap).
+S = "${UNPACKDIR}"
 
 # Only compatible with aarch64
 COMPATIBLE_MACHINE:aarch64 = "(.*)"

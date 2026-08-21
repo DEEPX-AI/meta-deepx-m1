@@ -8,8 +8,8 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=df0ebe3edba67d21cb2e798ef0ee2905"
 
 # 1. Source Definition
 SRC_URI = "git://github.com/DEEPX-AI/dx_yolo26.git;protocol=https;branch=main"
-# tag: v0.1.0
-SRCREV = "e9b1922f2bd43c67fb72b19f07171bb5f19e5924"
+# v0.1.0 + the GCC 13 / OpenCV-without-dnn build fixes (tag v0.1.1 once cut)
+SRCREV = "555cc3551838b5cf316638012a5089a81eaa94fe"
 
 S = "${WORKDIR}/git"
 

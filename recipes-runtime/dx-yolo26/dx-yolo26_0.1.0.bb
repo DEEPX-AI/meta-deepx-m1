@@ -8,8 +8,8 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=df0ebe3edba67d21cb2e798ef0ee2905"
 
 # 1. Source Definition
 SRC_URI = "git://github.com/DEEPX-AI/dx_yolo26.git;protocol=https;branch=main"
-# v0.1.0 + the GCC 13 / OpenCV-without-dnn build fixes (tag v0.1.1 once cut)
-SRCREV = "555cc3551838b5cf316638012a5089a81eaa94fe"
+# tag: v0.1.0
+SRCREV = "8584056404b2452fd6e62a42d63ac8636ebe086d"
 
 S = "${WORKDIR}/git"
 
@@ -42,20 +42,16 @@ EXTRA_OECMAKE = " \
     -DDXRT_INSTALLED_DIR=${STAGING_DIR_HOST}${prefix} \
     -DDXYOLO26_DATA_DIR=${datadir}/dx_yolo26 \
     -DDXYOLO26_VARIANTS=${DXYOLO26_VARIANTS} \
+    -DDXYOLO26_INSTALL_SAMPLES=OFF \
     -DCMAKE_SKIP_RPATH=ON \
     -DCMAKE_SKIP_INSTALL_RPATH=ON \
 "
 
 # Packaging Configuration
-# ${PN} carries the applications and their postprocess parameters. The sample input images are split out into ${PN}-samples (~1 MB): an
-# application called without -i/-v/-c/-r falls back to "sample/img/..." relative to
-# the working directory, so they are only needed to run a demo straight from
-# ${datadir}/dx_yolo26 - see also the dx-yolo26-sample recipe for the full bundle
-# with models and videos.
-PACKAGE_BEFORE_PN = "${PN}-samples"
-
-FILES:${PN}-samples = "${datadir}/dx_yolo26/sample"
-
+# ${PN} carries the applications and their postprocess parameters. The sample
+# images in the source tree are not installed (-DDXYOLO26_INSTALL_SAMPLES=OFF):
+# dx-yolo26-sample ships them together with the models and the video clips, so
+# shipping both would put two copies of the same images in the image.
 FILES:${PN} += " \
     ${bindir}/yolo26* \
     ${datadir}/dx_yolo26/examples \

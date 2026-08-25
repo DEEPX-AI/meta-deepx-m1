@@ -177,19 +177,39 @@ images. Both are optional - skip them if the image only needs the runtime.
 ```text
 /usr/bin/yolo26n_async, yolo26n_cls_async, yolo26n_pose_async,
          yolo26n_seg_async, yolo26n_depth_async
-/usr/share/dx_yolo26/examples/<category>/<model>/config.json   # postprocess thresholds
-/usr/share/dx-yolo26-sample/assets/models/*.dxnn               # models
-/usr/share/dx-yolo26-sample/assets/videos/*                    # video clips
-/usr/share/dx-yolo26-sample/sample/img/*                       # still images
+/usr/share/dx_yolo26/examples/<category>/<model>/config.json  # postprocess thresholds
+/etc/dx-yolo26-sample/run.sh                                 # demo launcher
+/etc/dx-yolo26-sample/assets/models/*.dxnn                   # models
+/etc/dx-yolo26-sample/assets/videos/*                        # video clips
+/etc/dx-yolo26-sample/sample/img/*                           # still images
 ```
 
-### 7.2. Running an Application
+### 7.2. Running a Demo
+
+The asset bundle ships a `run.sh` helper that runs one application on a sample
+video clip. It resolves its paths relative to itself, so it works from any
+directory:
+
+```bash
+/etc/dx-yolo26-sample/run.sh          # list the demos
+/etc/dx-yolo26-sample/run.sh 0        # object detection on snowboard.mp4
+/etc/dx-yolo26-sample/run.sh 2        # pose estimation on dance-solo.mov
+
+  0  object detection        3  instance segmentation
+  1  classification          4  depth estimation
+  2  pose estimation
+```
+
+Anything after the index goes to the application, for example
+`run.sh 0 --no-display`.
+
+### 7.3. Running an Application Directly
 
 Each application resolves its default model and its default input **relative to the
 working directory**, so start it from the asset bundle and no arguments are needed:
 
 ```bash
-cd /usr/share/dx-yolo26-sample
+cd /etc/dx-yolo26-sample
 
 yolo26n_async                    # object detection
 yolo26n_cls_async                # classification
@@ -220,7 +240,7 @@ yolo26n_seg_async -m assets/models/yolo26-n-seg_640x640.dxnn -i ./sample/img -s
 yolo26n_async --config /usr/share/dx_yolo26/examples/object_detection/yolo26n/config.json
 ```
 
-### 7.3. Applications and Their Defaults
+### 7.4. Applications and Their Defaults
 
 | Application | Task | Default model | Default image |
 | :--- | :--- | :--- | :--- |
@@ -233,7 +253,7 @@ yolo26n_async --config /usr/share/dx_yolo26/examples/object_detection/yolo26n/co
 Paths are relative to the working directory: models under `assets/models/`, images
 under `sample/img/`.
 
-### 7.4. Common Options
+### 7.5. Common Options
 
 * `-m, --model_path <file.dxnn>` - model to run; omitted, the application uses its default
 * `-i, --image_path <file|dir>` - image file or a directory of images
@@ -246,7 +266,7 @@ under `sample/img/`.
 * `--config <config.json>` - postprocess thresholds
 * `--show-log`, `-h, --help`
 
-### 7.5. Notes
+### 7.6. Notes
 
 * Only the asynchronous variants are packaged. To get the `*_sync` applications as
   well, build with `DXYOLO26_VARIANTS:pn-dx-yolo26 = "both"` in `conf/local.conf`.

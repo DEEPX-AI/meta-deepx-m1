@@ -168,15 +168,20 @@ DX-RT v3.x.x
 
 ## 7. YOLO26 Applications
 
-`dx-yolo26` installs five DXRT-based YOLO26 applications, and `dx-yolo26-sample`
-installs everything they need to run: the models, a few video clips and still
-images. Both are optional - skip them if the image only needs the runtime.
+`dx-yolo26` installs eight DXRT-based YOLO26 applications: five for the regular
+models and three `*_preopt` variants for the *pre-optimized* models, in which the
+top-k 300 candidate selection runs inside the model and the application has almost
+no postprocessing left. `dx-yolo26-sample` installs everything the demos need: the
+models, a few video clips and still images. Object detection, pose estimation and
+instance segmentation in the bundle use the pre-optimized models. Both packages
+are optional - skip them if the image only needs the runtime.
 
 ### 7.1. Installed Files
 
 ```text
 /usr/bin/yolo26n_async, yolo26n_cls_async, yolo26n_pose_async,
          yolo26n_seg_async, yolo26n_depth_async
+/usr/bin/yolo26n_preopt_async, yolo26n_pose_preopt_async, yolo26n_seg_preopt_async
 /usr/share/dx_yolo26/examples/<category>/<model>/config.json  # postprocess thresholds
 /etc/dx-yolo26-sample/run.sh                                 # demo launcher
 /etc/dx-yolo26-sample/assets/models/*.dxnn                   # models
@@ -195,9 +200,11 @@ directory:
 /etc/dx-yolo26-sample/run.sh 0        # object detection on snowboard.mp4
 /etc/dx-yolo26-sample/run.sh 2        # pose estimation on dance-solo.mov
 
-  0  object detection        3  instance segmentation
-  1  classification          4  depth estimation
-  2  pose estimation
+  0  object detection        (yolo26n_preopt_async)
+  1  classification          (yolo26n_cls_async)
+  2  pose estimation         (yolo26n_pose_preopt_async)
+  3  instance segmentation   (yolo26n_seg_preopt_async)
+  4  depth estimation        (yolo26n_depth_async)
 ```
 
 Anything after the index goes to the application, for example
@@ -211,44 +218,51 @@ working directory**, so start it from the asset bundle and no arguments are need
 ```bash
 cd /etc/dx-yolo26-sample
 
-yolo26n_async                    # object detection
+yolo26n_preopt_async             # object detection (pre-optimized model)
 yolo26n_cls_async                # classification
-yolo26n_pose_async               # pose estimation
-yolo26n_seg_async                # instance segmentation
+yolo26n_pose_preopt_async        # pose estimation (pre-optimized model)
+yolo26n_seg_preopt_async         # instance segmentation (pre-optimized model)
 yolo26n_depth_async              # depth estimation
 ```
+
+The regular `yolo26n_async`, `yolo26n_pose_async` and `yolo26n_seg_async` are
+installed too, but the bundle does not carry their models: pass one from
+[DX-ModelZoo](https://developer.deepx.ai/modelzoo/) with `-m`.
 
 Rendering opens a window, so a compositor (for example weston) has to be running.
 Over SSH or on a headless image, add `--no-display` to print the frame rate only:
 
 ```bash
-yolo26n_async --no-display
+yolo26n_preopt_async --no-display
 ```
 
 Other inputs are selected explicitly:
 
 ```bash
 # video clip, camera, RTSP stream
-yolo26n_async -v assets/videos/snowboard.mp4
-yolo26n_async -c 0
-yolo26n_async -r rtsp://<host>:<port>/<path>
+yolo26n_preopt_async -v assets/videos/snowboard.mp4
+yolo26n_preopt_async -c 0
+yolo26n_preopt_async -r rtsp://<host>:<port>/<path>
 
 # an explicit model and image directory, results written to disk
-yolo26n_seg_async -m assets/models/yolo26-n-seg_640x640.dxnn -i ./sample/img -s
+yolo26n_seg_preopt_async -m assets/models/pre_optimized_yolo26n-seg.dxnn -i ./sample/img -s
 
 # postprocess thresholds from the installed config
-yolo26n_async --config /usr/share/dx_yolo26/examples/object_detection/yolo26n/config.json
+yolo26n_preopt_async --config /usr/share/dx_yolo26/examples/object_detection/yolo26n_preopt/config.json
 ```
 
 ### 7.4. Applications and Their Defaults
 
-| Application | Task | Default model | Default image |
-| :--- | :--- | :--- | :--- |
-| `yolo26n_async` | Object detection | `yolo26-n-od_640x640.dxnn` | `sample_street.jpg` |
-| `yolo26n_cls_async` | Classification | `yolo26-n-cls_224x224.dxnn` | `sample_dog.jpg` |
-| `yolo26n_pose_async` | Pose estimation | `yolo26-n-pose_640x640.dxnn` | `sample_people.jpg` |
-| `yolo26n_seg_async` | Instance segmentation | `yolo26-n-seg_640x640.dxnn` | `sample_street.jpg` |
-| `yolo26n_depth_async` | Depth estimation | `yolo26-depth-n_768x768.dxnn` | `sample_parking.jpg` |
+| Application | Task | Default model | In the bundle | Default image |
+| :--- | :--- | :--- | :--- | :--- |
+| `yolo26n_preopt_async` | Object detection | `pre_optimized_yolo26-n-od.dxnn` | yes | `sample_street.jpg` |
+| `yolo26n_cls_async` | Classification | `yolo26-n-cls_224x224.dxnn` | yes | `sample_dog.jpg` |
+| `yolo26n_pose_preopt_async` | Pose estimation | `pre_optimized_yolo26n-pose.dxnn` | yes | `sample_people.jpg` |
+| `yolo26n_seg_preopt_async` | Instance segmentation | `pre_optimized_yolo26n-seg.dxnn` | yes | `sample_street.jpg` |
+| `yolo26n_depth_async` | Depth estimation | `yolo26-depth-n_768x768.dxnn` | yes | `sample_parking.jpg` |
+| `yolo26n_async` | Object detection | `yolo26-n-od_640x640.dxnn` | no | `sample_street.jpg` |
+| `yolo26n_pose_async` | Pose estimation | `yolo26-n-pose_640x640.dxnn` | no | `sample_people.jpg` |
+| `yolo26n_seg_async` | Instance segmentation | `yolo26-n-seg_640x640.dxnn` | no | `sample_street.jpg` |
 
 Paths are relative to the working directory: models under `assets/models/`, images
 under `sample/img/`.
@@ -273,5 +287,13 @@ under `sample/img/`.
 * Additional or larger YOLO26 models come from
   [DX-ModelZoo](https://developer.deepx.ai/modelzoo/). Put them under
   `assets/models/` next to the working directory, or pass the path with `-m`.
+* The pre-optimized models emit a fixed table of the 300 best candidates
+  (`preopt_output [1, 300, C]`), already decoded and sorted by score, so the
+  `*_preopt` applications only apply `score_threshold` and, because one anchor
+  can be listed under several classes, an optional class-agnostic NMS
+  (`nms_threshold` in the `config.json`). On a single stream this roughly halves
+  the per-frame latency of detection and pose compared with the regular models;
+  with all NPU cores busy the throughput is about the same. Details in the
+  dx_yolo26 README, section "Pre-optimized models".
 * The applications link OpenCV `highgui` and `videoio`; the OpenCV in your image has
   to provide those modules for display and video input to work.

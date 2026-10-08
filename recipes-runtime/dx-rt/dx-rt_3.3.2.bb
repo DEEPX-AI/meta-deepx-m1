@@ -9,6 +9,7 @@ SRC_URI = "git://github.com/DEEPX-AI/dx_rt.git;protocol=https;branch=main \
             file://0202-python-build.patch \
             file://setup_3.3.2.py \
             file://dxrt-init \
+            file://dxrt.service \
         "
 SRCREV = "a30624494506607b65a5d621e5cd37d3c2dbcb99"
 
@@ -17,7 +18,7 @@ S = "${WORKDIR}/git"
 PACKAGECONFIG[shared_dxrt_lib] = "\
     -DUSE_SHARED_DXRT_LIB=ON"
 
-inherit cmake python3-dir python3native update-rc.d
+inherit cmake python3-dir python3native update-rc.d systemd
 
 INITSCRIPT_NAME = "dxrt-init"
 INITSCRIPT_PARAMS = "defaults 90"
@@ -50,9 +51,9 @@ EXTRA_OECMAKE += " \
 "
 
 # setting systemd service
-#SYSTEMD_PACKAGES = "${PN}-cli"
-#SYSTEMD_SERVICE:${PN}-cli = "dxrt.service"
-#SYSTEMD_AUTO_ENABLE:${PN}-cli = "enable"
+SYSTEMD_PACKAGES = "${PN}"
+SYSTEMD_SERVICE:${PN} = "dxrt.service"
+SYSTEMD_AUTO_ENABLE:${PN} = "enable"
 
 # add new sub-package (${PN} / ${PN}-dev / ${PN}-dbg)
 PACKAGES:append = " ${PN}-cli ${PN}-examples"
@@ -88,10 +89,10 @@ do_configure:prepend() {
 do_install:append() {
 
     # system service
-    #if ${@bb.utils.contains('DISTRO_FEATURES','systemd','true','false',d)}; then
-    #    install -d ${D}${systemd_system_unitdir}
-    #    install -m 0644 ${WORKDIR}/dxrt.service ${D}${systemd_system_unitdir}
-    #fi
+    if ${@bb.utils.contains('DISTRO_FEATURES','systemd','true','false',d)}; then
+        install -d ${D}${systemd_system_unitdir}
+        install -m 0644 ${WORKDIR}/dxrt.service ${D}${systemd_system_unitdir}
+    fi
 
     if [ -d "${D}/media" ]; then
         echo "INFO: dx-runtime: Removing problematic host path /media from image root."

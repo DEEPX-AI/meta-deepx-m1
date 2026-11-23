@@ -9,6 +9,7 @@ SRC_URI = "git://github.com/DEEPX-AI/dx_rt.git;protocol=https;branch=main \
             file://0401-python-build.patch \
             file://setup_3.5.0.py \
             file://dxrt-init \
+            file://dxrt.service \
         "
 SRCREV = "f997363c97015cd3a601e99d3d0c91bcc1be70c6"
 
@@ -17,10 +18,29 @@ S = "${WORKDIR}/git"
 PACKAGECONFIG[shared_dxrt_lib] = "\
     -DUSE_SHARED_DXRT_LIB=ON"
 
-inherit cmake python3-dir python3native update-rc.d
+# ------------------------------------------------------------------
+# Service / init manager selection per MACHINE
+#   smarc-rzg3e (Renesas RZ/G3E, systemd) : dxrt.service via systemctl
+#   others (Raspberry Pi etc.)            : SysVinit script (dxrt-init)
+# ------------------------------------------------------------------
+DXRT_USE_SYSTEMD = "0"
+DXRT_USE_SYSTEMD:smarc-rzg3e = "1"
 
+inherit cmake python3-dir python3native
+inherit ${@'systemd' if d.getVar('DXRT_USE_SYSTEMD') == '1' else 'update-rc.d'}
+
+# SysVinit (non smarc-rzg3e)
 INITSCRIPT_NAME = "dxrt-init"
 INITSCRIPT_PARAMS = "defaults 90"
+
+# systemd (smarc-rzg3e)
+# The service must belong to ${PN}: ${PN} is listed before ${PN}-cli in
+# PACKAGES, so dxrtd and the unit file are packaged into ${PN}, and images
+# install only "dx-rt". Binding it to ${PN}-cli left the unit out of the
+# image (dxrt.service not found, never enabled at boot).
+SYSTEMD_PACKAGES = "${PN}"
+SYSTEMD_SERVICE:${PN} = "dxrt.service"
+SYSTEMD_AUTO_ENABLE:${PN} = "enable"
 
 # onnxruntime prebuilt library
 DEPENDS += "libonnxruntime"
@@ -49,11 +69,6 @@ EXTRA_OECMAKE += " \
     -DCMAKE_BUILD_RPATH= \ 
 "
 
-# setting systemd service
-#SYSTEMD_PACKAGES = "${PN}-cli"
-#SYSTEMD_SERVICE:${PN}-cli = "dxrt.service"
-#SYSTEMD_AUTO_ENABLE:${PN}-cli = "enable"
-
 # add new sub-package (${PN} / ${PN}-dev / ${PN}-dbg)
 PACKAGES:append = " ${PN}-cli ${PN}-examples"
 
@@ -67,6 +82,7 @@ FILES:${PN}-cli = " \
     ${bindir}/parse_model \
     ${bindir}/run_model \
     ${bindir}/dxtop \
+    ${bindir}/dxtop.bin \
     ${bindir}/dxbenchmark \
 "
 
@@ -87,12 +103,6 @@ do_configure:prepend() {
 
 do_install:append() {
 
-    # system service
-    #if ${@bb.utils.contains('DISTRO_FEATURES','systemd','true','false',d)}; then
-    #    install -d ${D}${systemd_system_unitdir}
-    #    install -m 0644 ${WORKDIR}/dxrt.service ${D}${systemd_system_unitdir}
-    #fi
-
     if [ -d "${D}/media" ]; then
         echo "INFO: dx-runtime: Removing problematic host path /media from image root."
         rm -rf "${D}/media"
@@ -106,30 +116,93 @@ do_install:append() {
         rm -rf "${D}/home"
     fi
 
+    # Upstream CMake may install into the absolute build path (${S}/...),
+    # e.g. /data/yocto/... on build hosts that do not build under /home.
+    if [ -d "${D}${S}" ]; then
+        leak_top="$(echo "${S}" | cut -d/ -f2)"
+        case "$leak_top" in
+            ""|usr|etc|lib|bin|sbin|var|opt) ;;
+            *)
+                echo "INFO: dx-runtime: Removing problematic host path /$leak_top from image root."
+                rm -rf "${D}/$leak_top"
+                ;;
+        esac
+    fi
+
     for b in dxrt-cli dxrtd run_model parse_model dxtop dxbenchmark; do
         if [ -f "${D}${bindir}/$b" ]; then
             chrpath -d "${D}${bindir}/$b" 2>/dev/null || true
         fi
     done
 
-    # install SysVinit script
-    install -d ${D}${sysconfdir}/init.d
-    install -m 0755 ${WORKDIR}/dxrt-init ${D}${sysconfdir}/init.d/dxrt-init
-
     # Create a script to set environment variables automatically on login
-    install -d ${D}${sysconfdir}/profile.d
-    
-    # Generate shell script for TERMINFO path and TERM setting
     # Using 0644 as it will be sourced by the shell, not executed directly
-    cat <<EOF > ${D}${sysconfdir}/profile.d/dxrt_env.sh
+    install -d ${D}${sysconfdir}/profile.d
+
+    if [ "${DXRT_USE_SYSTEMD}" = "1" ]; then
+        # ---- smarc-rzg3e : systemd service (started by systemctl) ----
+        install -d ${D}${systemd_system_unitdir}
+        install -m 0644 ${WORKDIR}/dxrt.service ${D}${systemd_system_unitdir}/dxrt.service
+        # Do NOT install /etc/init.d/dxrt-init here: systemd-sysv-generator
+        # would otherwise create a second unit and start dxrtd twice.
+
+        # ---- dxtop wrapper (ncurses terminfo) ----
+        # dxtop statically links upstream's prebuilt libncursesw.a, whose
+        # built-in terminfo path is a developer host path that does not exist
+        # on target. It only finds terminfo through TERMINFO / TERMINFO_DIRS.
+        # profile.d is sourced by login shells only (ssh), so non-login shells
+        # (weston-terminal, su) failed with "Error opening terminal: xterm".
+        # Install the real binary as dxtop.bin and wrap it so it works from
+        # any shell.
+        if [ -f "${D}${bindir}/dxtop" ]; then
+            mv ${D}${bindir}/dxtop ${D}${bindir}/dxtop.bin
+            cat <<'EOF' > ${D}${bindir}/dxtop
+#!/bin/sh
+# DEEPX dx-rt : dxtop wrapper
+# dxtop uses a statically linked ncurses that does not search the system
+# terminfo database by default. Point it there unless the user set one.
+if [ -z "$TERMINFO" ] && [ -z "$TERMINFO_DIRS" ]; then
+    TERMINFO_DIRS=/etc/terminfo:/usr/share/terminfo
+    export TERMINFO_DIRS
+fi
+exec ${bindir}/dxtop.bin "$@"
+EOF
+            chmod 0755 ${D}${bindir}/dxtop
+        fi
+
+        # ---- terminal settings for login shells ----
+        # - TERMINFO=/etc/terminfo : same as before (used by the static ncurses)
+        # - serial-getty (ttySC0) logs in with TERM=vt220 (no color / limited
+        #   capabilities), so promote it to xterm-256color, which is shipped
+        #   in ncurses-terminfo-base.
+        cat <<'EOF' > ${D}${sysconfdir}/profile.d/dxrt_env.sh
+#!/bin/sh
+# DEEPX dx-rt : terminal environment for dxtop (ncurses)
+export TERMINFO=/etc/terminfo
+
+case "$TERM" in
+    ""|dumb|unknown|vt100|vt102|vt220)
+        export TERM=xterm-256color
+        ;;
+esac
+EOF
+    else
+        # ---- others (Raspberry Pi etc.) : SysVinit script (unchanged) ----
+        install -d ${D}${sysconfdir}/init.d
+        install -m 0755 ${WORKDIR}/dxrt-init ${D}${sysconfdir}/init.d/dxrt-init
+
+        # Generate shell script for TERMINFO path
+        cat <<EOF > ${D}${sysconfdir}/profile.d/dxrt_env.sh
 #!/bin/sh
 export TERMINFO=/etc/terminfo
 EOF
+    fi
     chmod 0644 ${D}${sysconfdir}/profile.d/dxrt_env.sh
 
 }
 
 FILES:${PN}-cli += "${sysconfdir}/init.d/dxrt-init"
+FILES:${PN} += "${systemd_system_unitdir}/dxrt.service"
 
 # Execute pip install (Run after CMake installation)
 do_install:append() {

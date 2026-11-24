@@ -113,12 +113,27 @@ do_install() {
         install -d ${D}${datadir}/gstdxstream/lib
         cp -r ${S}/install/usr/lib/postprocess/* ${D}${datadir}/gstdxstream/lib/
     fi
+
+    # License and third-party notices, shipped in the main package.
+    install -d ${D}${datadir}/licenses/${PN}
+    install -m 0644 ${S}/LICENSE ${D}${datadir}/licenses/${PN}/LICENSE
+    notices=""
+    for f in NOTICE NOTICE.md NOTICE.txt THIRD_PARTY_NOTICES THIRD_PARTY_NOTICES.md THIRD_PARTY_NOTICES.txt; do
+        if [ -f "${S}/$f" ]; then
+            install -m 0644 "${S}/$f" ${D}${datadir}/licenses/${PN}/
+            notices="$notices $f"
+        fi
+    done
+    if [ -z "$notices" ]; then
+        bbwarn "dx_stream has no NOTICE / THIRD_PARTY_NOTICES file at this SRCREV; only LICENSE is installed."
+    fi
 }
 
 # Packaging Configuration
 FILES:${PN} += " \
     ${libdir}/gstreamer-1.0/*.so* \
     ${datadir}/gstdxstream/* \
+    ${datadir}/licenses/${PN} \
 "
 
 FILES:${PN}-dev += " \

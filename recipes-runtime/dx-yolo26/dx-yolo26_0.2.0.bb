@@ -5,8 +5,16 @@ plus the *_preopt variants of detection, pose and segmentation for the pre-optim
 that select the top-k candidates inside the model. The YOLO26 postprocessing is compiled \
 into the applications; no shared library is built."
 HOMEPAGE = "https://github.com/DEEPX-AI/dx_yolo26/"
-LICENSE = "Proprietary"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=df0ebe3edba67d21cb2e798ef0ee2905"
+# DEEPX code is proprietary. Two MIT header-only libraries are vendored in the
+# source tree and compiled into the applications: cxxopts and nlohmann/json.
+# Their license headers are part of LIC_FILES_CHKSUM so they reach the license
+# manifest (tmp/deploy/licenses).
+LICENSE = "Proprietary & MIT"
+LIC_FILES_CHKSUM = " \
+    file://LICENSE;md5=df0ebe3edba67d21cb2e798ef0ee2905 \
+    file://extern/cxxopts.hpp;beginline=1;endline=23;md5=94bcf26173cdc3ba81ec8e9cd00aadd2 \
+    file://src/cpp_example/common/third_party/nlohmann_json.hpp;beginline=1;endline=7;md5=70c6b2fa6e75c5d655d5e5b996dc7b23 \
+"
 
 # 1. Source Definition
 SRC_URI = "git://github.com/DEEPX-AI/dx_yolo26.git;protocol=https;branch=main"
@@ -62,3 +70,24 @@ FILES:${PN} += " \
 # NOTE: .dxnn models are not part of this package. Copy them onto the target from
 # DX-ModelZoo and pass them with "-m <model.dxnn>", or place them under
 # assets/models/ relative to the working directory to use an application default.
+
+# License texts, shipped in the main package: the DEEPX LICENSE and the MIT
+# notices of the vendored cxxopts and nlohmann/json headers.
+do_install:append() {
+    install -d ${D}${datadir}/licenses/${PN}
+    install -m 0644 ${S}/LICENSE ${D}${datadir}/licenses/${PN}/LICENSE
+    {
+        echo "dx-yolo26 includes the following third-party software."
+        echo
+        echo "== cxxopts (MIT) =="
+        sed -n '1,23p' ${S}/extern/cxxopts.hpp
+        echo
+        echo "== JSON for Modern C++ / nlohmann/json (MIT) =="
+        sed -n '1,7p' ${S}/src/cpp_example/common/third_party/nlohmann_json.hpp
+        echo
+        cat ${COMMON_LICENSE_DIR}/MIT
+    } > ${D}${datadir}/licenses/${PN}/THIRD_PARTY_NOTICES.txt
+    chmod 0644 ${D}${datadir}/licenses/${PN}/THIRD_PARTY_NOTICES.txt
+}
+
+FILES:${PN} += "${datadir}/licenses/${PN}"

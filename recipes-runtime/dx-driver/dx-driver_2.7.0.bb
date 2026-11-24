@@ -1,8 +1,20 @@
 SUMMARY = "DEEPX NPU Driver"
 DESCRIPTION = "DEEPX M1 NPU Linux Kernel Drivers"
 HOMEPAGE = "https://deepx.ai"
-LICENSE = "Proprietary"
-LIC_FILES_CHKSUM = "file://../LICENSE;md5=df0ebe3edba67d21cb2e798ef0ee2905"
+# The kernel modules are GPL-2.0: every source file carries
+# "SPDX-License-Identifier: GPL-2.0" and the modules declare MODULE_LICENSE("GPL").
+# At this SRCREV the repository has no GPL text of its own (its top-level LICENSE
+# is still the DEEPX proprietary notice, corrected upstream by DXM1-2903), so the
+# checksum covers the SPDX headers and the GPL-2.0 text shipped with OE-Core.
+# TODO(DXM1-2903): once the upstream fix is merged, bump SRCREV and point
+# LIC_FILES_CHKSUM at the repository's COPYING instead.
+LICENSE = "GPL-2.0-only"
+LIC_FILES_CHKSUM = " \
+    file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171dd6425610833a22dbe6 \
+    file://Kbuild;beginline=1;endline=1;md5=daad6f7f7a0a286391cd7773ccf79340 \
+    file://rt/dxrt_drv.c;beginline=1;endline=1;md5=50d2ba0afecd20f74c12a4bdbcfcfe61 \
+    file://pci_deepx/dx_sgdma.c;beginline=1;endline=1;md5=50d2ba0afecd20f74c12a4bdbcfcfe61 \
+"
 
 inherit module
 

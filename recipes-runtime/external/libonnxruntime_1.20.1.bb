@@ -2,15 +2,18 @@ SUMMARY = "ONNX Runtime prebuilt binaries"
 DESCRIPTION = "Microsoft ONNX Runtime prebuilt libraries and headers for inference (precompiled import)."
 HOMEPAGE = "https://onnxruntime.ai/"
 LICENSE = "MIT"
-LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
+# The LICENSE and ThirdPartyNotices.txt shipped inside the prebuilt archive
+# (ONNX_PACKAGE_FOLDER is defined below).
+LIC_FILES_CHKSUM = " \
+    file://${ONNX_PACKAGE_FOLDER}/LICENSE;md5=0f7e3b1308cb5c00b372a6e78835732d \
+    file://${ONNX_PACKAGE_FOLDER}/ThirdPartyNotices.txt;md5=f6ad6de2fc986435f47fff064a99b97c \
+"
 
 
 ONNX_VERSION = "1.20.1"
 ONNX_ARCH = "aarch64"
 ONNX_PACKAGE_NAME = "onnxruntime-linux-${ONNX_ARCH}-${ONNX_VERSION}.tgz"
 ONNX_PACKAGE_FOLDER = "onnxruntime-linux-${ONNX_ARCH}-${ONNX_VERSION}"
-
-#LIC_FILES_CHKSUM = "file://${ONNX_PACKAGE_FOLDER}/LICENSE;md5=0f7e3b1308cb5c00b372a6e78835732d"
 
 # Download prebuilt ONNX Runtime from GitHub releases
 SRC_URI = "https://github.com/microsoft/onnxruntime/releases/download/v${ONNX_VERSION}/${ONNX_PACKAGE_NAME};name=onnxruntime"
@@ -57,20 +60,19 @@ do_install() {
 
     # Relocate documentation / metadata files to standard locations to ensure they are packaged
     install -d ${D}${docdir}/${PN}
-    for f in README.md ThirdPartyNotices.txt Privacy.md VERSION_NUMBER GIT_COMMIT_ID; do
+    for f in README.md Privacy.md VERSION_NUMBER GIT_COMMIT_ID; do
         if [ -f ${D}${prefix}/$f ]; then
             mv ${D}${prefix}/$f ${D}${docdir}/${PN}/
         fi
     done
 
-    # Install license file (if present) into licenses directory used by Yocto
-    if [ -f ${ONNX_PACKAGE_FOLDER}/LICENSE ]; then
-        install -d ${D}${datadir}/licenses/${PN}
-        install -m 0644 ${ONNX_PACKAGE_FOLDER}/LICENSE ${D}${datadir}/licenses/${PN}/LICENSE
-        if [ -f ${D}${prefix}/LICENSE ]; then
-            rm -f ${D}${prefix}/LICENSE
-        fi
-    fi
+    # License and third-party notices go next to each other in the licenses
+    # directory; both are shipped in the main (runtime) package.
+    install -d ${D}${datadir}/licenses/${PN}
+    for f in LICENSE ThirdPartyNotices.txt; do
+        install -m 0644 ${ONNX_PACKAGE_FOLDER}/$f ${D}${datadir}/licenses/${PN}/$f
+        rm -f ${D}${prefix}/$f
+    done
 
     # Generate pkg-config if missing in archive
     if [ ! -f ${D}${prefix}/lib/pkgconfig/onnxruntime.pc ]; then
@@ -107,6 +109,7 @@ FILES:${PN} = " \
     ${prefix}/lib/libonnxruntime.so.* \
     ${prefix}/lib/libonnxruntime_providers_*.so* \
     ${prefix}/bin/* \
+    ${datadir}/licenses/${PN} \
 "
 
 # Development headers & symlinks
@@ -120,9 +123,6 @@ FILES:${PN}-dev = " \
 
 # Documentation / metadata (relocated)
 FILES:${PN}-doc = "${docdir}/${PN}/*"
-
-# License directory (explicit)
-FILES:${PN}-doc += "${datadir}/licenses/${PN}/LICENSE"
 
 ## Prebuilt (already stripped) – suppress only what’s necessary.
 ## Keep scope narrow so other QA checks still run.

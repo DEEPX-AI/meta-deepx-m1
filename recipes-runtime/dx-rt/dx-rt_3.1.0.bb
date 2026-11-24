@@ -1,8 +1,16 @@
 SUMMARY = "DEEPX Runtime SDK"
 DESCRIPTION = "DX-M1 Runtime Library and CLI tools"
 HOMEPAGE = "https://deepx.ai/"
-LICENSE = "Proprietary"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=df0ebe3edba67d21cb2e798ef0ee2905"
+# DEEPX code is proprietary. The binaries also contain third-party code listed in
+# NOTICE.md: RapidJSON, cxxopts and ncurses (MIT / MIT-style), pybind11 (BSD-3-Clause).
+# NOTICE.md is part of LIC_FILES_CHKSUM so it reaches the license manifest
+# (tmp/deploy/licenses), and it is installed on the target next to LICENSE.
+# If upstream changes NOTICE.md (DXM1-2902), update its md5 here.
+LICENSE = "Proprietary & MIT & BSD-3-Clause"
+LIC_FILES_CHKSUM = " \
+    file://LICENSE;md5=df0ebe3edba67d21cb2e798ef0ee2905 \
+    file://NOTICE.md;md5=3308f3889b58b7fa92caaae9a304b244 \
+"
 
 # do_fetch source
 SRC_URI = "git://github.com/DEEPX-AI/dx_rt.git;protocol=https;branch=main \
@@ -140,3 +148,12 @@ do_install:append() {
 # added run_model.py
 FILES:${PN} += "${sysconfdir}/dx-rt/run_model.py"
 
+# License and third-party notices, shipped in the main package so they are on
+# every device that carries the runtime.
+do_install:append() {
+    install -d ${D}${datadir}/licenses/${PN}
+    install -m 0644 ${S}/LICENSE ${D}${datadir}/licenses/${PN}/LICENSE
+    install -m 0644 ${S}/NOTICE.md ${D}${datadir}/licenses/${PN}/NOTICE.md
+}
+
+FILES:${PN} += "${datadir}/licenses/${PN}"

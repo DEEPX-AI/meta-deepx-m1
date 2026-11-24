@@ -48,9 +48,19 @@ Developers should have working knowledge of core Yocto operations, including:
 * Editing configuration files (`local.conf`).
 * Managing layers using `bitbake-layers`.
 
+### 2.5. Required Layers
+
+Besides OE-Core and your board's BSP layer, `conf/bblayers.conf` must contain these `meta-openembedded` layers:
+
+* `meta-oe` (`opencv`, `librdkafka`, `libeigen`)
+* `meta-python` (`python3-pybind11`)
+* `meta-networking` (`mosquitto`)
+
 ---
 
 ## 3. Installation
+
+All commands in sections 3 to 5 run on the build host as a normal user (no `sudo`). `bitbake` and `bitbake-layers` are available after the build environment is initialized, for example `source poky/oe-init-build-env build`, which also changes into the build directory.
 
 ### 3.1. Clone the Repository
 
@@ -114,12 +124,34 @@ CORE_IMAGE_EXTRA_INSTALL += "ncurses-terminfo-base"
 
 ## 5. Build
 
-Build your target image using `bitbake`.
+Build your target image using `bitbake`, from the build directory.
 
 ```bash
 # Example for weston image
 bitbake core-image-weston
 ```
+
+A successful build ends with `Tasks Summary: ... all succeeded.`
+
+### 5.1. Build Output
+
+The image files are written to `tmp/deploy/images/<MACHINE>/` in the build directory, named after the image and the machine:
+
+```text
+build/tmp/deploy/images/<MACHINE>/
+  <image>-<MACHINE>.rootfs.wic.gz     # disk image
+  <image>-<MACHINE>.rootfs.wic.bmap   # block map for bmaptool
+```
+
+Which image types are produced (`wic.gz`, `wic.xz`, `tar.gz`, ...) depends on the `IMAGE_FSTYPES` of your BSP and `conf/local.conf`. Write the image to the boot medium as described in your board's BSP documentation.
+
+### 5.2. If the Build Fails
+
+| Symptom | What to do |
+| :--- | :--- |
+| `Nothing PROVIDES 'opencv'` (or `mosquitto`, `librdkafka`, `python3-pybind11`) | Add the layers listed in [2.5](#25-required-layers) to `conf/bblayers.conf`. |
+| `do_fetch` fails for a `dx-*` recipe | Check that the build host can reach `github.com`. |
+| `LIC_FILES_CHKSUM` mismatch | The recipe and the fetched source are out of sync. Use an unmodified checkout of this layer's branch. |
 
 ---
 
@@ -146,6 +178,8 @@ Verify that the shared libraries are present in the system path.
 ls -l /usr/lib/libdxrt.so*
 ls -l /usr/lib/gstreamer-1.0/libgstdxstream.so*
 ```
+
+If `lsmod` in 6.1 lists nothing, check that `dx-driver` is in `IMAGE_INSTALL` and look at `dmesg | grep -i dx` for the device probe messages.
 
 ### 6.3. Check Installed Versions
 

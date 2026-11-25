@@ -1,0 +1,55 @@
+From 15022d4244943ca4ef68c8ca086459fb4c43f8f8 Mon Sep 17 00:00:00 2001
+From: Mateusz Koza <mateusz.koza@grinn-global.com>
+Date: Fri, 3 Apr 2026 13:01:18 +0200
+Subject: [PATCH 1/2] fix nents passed to dma_unmap_sg
+
+---
+ pci_deepx/dw-edma-thread.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/pci_deepx/dw-edma-thread.c b/pci_deepx/dw-edma-thread.c
+index 2a7312e..1e3bdfd 100644
+--- a/pci_deepx/dw-edma-thread.c
++++ b/pci_deepx/dw-edma-thread.c
+@@ -119,6 +119,8 @@ static int dw_edma_sg_process(struct dw_edma_info *info,
+ 	/* Set SG Table */
+ 	sgt = &(cb->sgt);
+ 	sg = &cb->sgt.sgl[0];
++	if (!sgt->orig_nents)
++		sgt->orig_nents = sgt->nents;
+ 
+ 	/*
+ 	 * Configures DMA channel according to the direction
+@@ -130,7 +132,7 @@ static int dw_edma_sg_process(struct dw_edma_info *info,
+ 		/* DMA_DEV_TO_MEM - WRITE - DMA_FROM_DEVICE */
+ 		dbg_tfr("%s: DMA_DEV_TO_MEM - WRITE - DMA_FROM_DEVICE\n",
+ 			dma_chan_name(chan));
+-		sgt->nents = dma_map_sg(dev, sgt->sgl, sgt->nents, DMA_FROM_DEVICE);
++		sgt->nents = dma_map_sg(dev, sgt->sgl, sgt->orig_nents, DMA_FROM_DEVICE);
+ 		if (!sgt->nents) {
+ 			pr_err("sg table mapped fail(DMA_FROM_DEVICE)\n");
+ 			goto err_alloc_descs;
+@@ -144,7 +146,7 @@ static int dw_edma_sg_process(struct dw_edma_info *info,
+ 		/* DMA_MEM_TO_DEV - READ - DMA_TO_DEVICE */
+ 		dbg_tfr("%s: DMA_MEM_TO_DEV - READ - DMA_TO_DEVICE\n",
+ 			dma_chan_name(chan));
+-		sgt->nents = dma_map_sg(dev, sgt->sgl, sgt->nents, DMA_TO_DEVICE);
++		sgt->nents = dma_map_sg(dev, sgt->sgl, sgt->orig_nents, DMA_TO_DEVICE);
+ 		if (!sgt->nents) {
+ 			pr_err("sg table mapped fail(DMA_TO_DEVICE)\n");
+ 			goto err_alloc_descs;
+@@ -269,9 +271,9 @@ err_stats:
+ 	dx_pcie_start_profile(PCIE_POST_PROCESS_T, cb->len, info->dev_n, info->cb->npu_id, info->cb->write);
+ 	if (sgt->nents > 0) {
+ 		if (direction == DMA_DEV_TO_MEM) {
+-			dma_unmap_sg(dev, sgt->sgl, sgt->nents, DMA_FROM_DEVICE);
++			dma_unmap_sg(dev, sgt->sgl, sgt->orig_nents, DMA_FROM_DEVICE);
+ 		} else {
+-			dma_unmap_sg(dev, sgt->sgl, sgt->nents, DMA_TO_DEVICE);
++			dma_unmap_sg(dev, sgt->sgl, sgt->orig_nents, DMA_TO_DEVICE);
+ 		}
+ 	}
+ 	dx_pcie_end_profile(PCIE_POST_PROCESS_T, cb->len, info->dev_n, info->cb->npu_id, info->cb->write);
+-- 
+2.53.0
+

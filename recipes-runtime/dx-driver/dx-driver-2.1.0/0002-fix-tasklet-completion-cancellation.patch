@@ -1,0 +1,216 @@
+From 5e60db379c14ce65822604323bfc98ef6e6eef94 Mon Sep 17 00:00:00 2001
+From: Mateusz Koza <mateusz.koza@grinn-global.com>
+Date: Fri, 10 Apr 2026 12:56:53 +0200
+Subject: [PATCH 2/2] fix tasklet completion cancellation
+
+---
+ pci_deepx/dw-edma-core.c         | 13 ++------
+ pci_deepx/dw-edma-mem.c          | 54 ++++++++++++++++++--------------
+ pci_deepx/dw-edma-mem.h          |  1 +
+ pci_deepx/include/dw-edma-core.h |  7 ++---
+ 4 files changed, 37 insertions(+), 38 deletions(-)
+
+diff --git a/pci_deepx/dw-edma-core.c b/pci_deepx/dw-edma-core.c
+index 0af54bb..1cf29fd 100644
+--- a/pci_deepx/dw-edma-core.c
++++ b/pci_deepx/dw-edma-core.c
+@@ -951,10 +951,9 @@ void dw_edma_done_interrupt(struct dw_edma_chan *chan)
+ 				spin_unlock_irqrestore(&dw->pool_lock, pool_flags);
+ 				dev_vdbg(chan->chip->dev, "[MEM][CHUNK][POOL] Free: idx=%ld addr=%p buf_paddr=%pad buf_vaddr=%p\n", (child - dw->chunk_pool), child, &child->host_region.paddr, child->host_region.vaddr);
+ 			} else {
+-				/* Non-pool chunk: Move to descriptor's pending free list
+-				 * Will be freed by work after all chunks complete */
++				/* Non-pool chunks may complete from tasklet context. */
+ 				list_del(&child->list);
+-				list_add_tail(&child->list, &desc->pending_free_chunks);
++				dw_edma_defer_chunk_free(chan, child);
+ 			}
+ 			desc->chunks_alloc--;
+ 		}
+@@ -965,10 +964,6 @@ void dw_edma_done_interrupt(struct dw_edma_chan *chan)
+ 				chan->status = EDMA_ST_BUSY;
+ 				dw_edma_start_transfer(chan);
+ 			} else {
+-				/* All chunks transferred - schedule cleanup work NOW */
+-				if (!list_empty(&desc->pending_free_chunks))
+-					schedule_work(&desc->cleanup_work);
+-				
+ 				list_del(&vd->node);
+ 				vchan_cookie_complete(vd);
+ 				chan->status = EDMA_ST_IDLE;
+@@ -976,10 +971,6 @@ void dw_edma_done_interrupt(struct dw_edma_chan *chan)
+ 			break;
+ 
+ 		case EDMA_REQ_STOP:
+-			/* Also schedule cleanup on stop */
+-			if (!list_empty(&desc->pending_free_chunks))
+-				schedule_work(&desc->cleanup_work);
+-			
+ 			list_del(&vd->node);
+ 			vchan_cookie_complete(vd);
+ 			chan->request = EDMA_REQ_NONE;
+diff --git a/pci_deepx/dw-edma-mem.c b/pci_deepx/dw-edma-mem.c
+index c7c7355..5ebb114 100644
+--- a/pci_deepx/dw-edma-mem.c
++++ b/pci_deepx/dw-edma-mem.c
+@@ -72,7 +72,23 @@ static void dw_edma_free_dma_mem(struct device *dev, struct dx_edma_region *regi
+ 	region->vaddr = NULL;
+ }
+ 
+-void dw_edma_desc_cleanup_work(struct work_struct *work);
++static void dw_edma_cleanup_work(struct work_struct *work);
++
++void dw_edma_defer_chunk_free(struct dw_edma_chan *chan, struct dw_edma_chunk *chunk)
++{
++	struct dw_edma *dw = chan->chip->dw;
++	unsigned long flags;
++
++	if (!chunk)
++		return;
++
++	spin_lock_irqsave(&dw->cleanup_lock, flags);
++	list_add_tail(&chunk->list, &dw->cleanup_chunks);
++	spin_unlock_irqrestore(&dw->cleanup_lock, flags);
++
++	schedule_work(&dw->cleanup_work);
++}
++EXPORT_SYMBOL_GPL(dw_edma_defer_chunk_free);
+ 
+ static struct dw_edma_chunk *dw_edma_alloc_chunk_from_pool(struct dw_edma *dw)
+ {
+@@ -399,7 +415,6 @@ void dw_edma_free_chunk(struct dw_edma_desc *desc)
+ 					pr_debug_ratelimited("Skipping DMA free in atomic context, will free in terminate_all\n");
+ 					/* Keep vaddr intact - it will be freed in terminate_all */
+ 				} else {
+-					/* Process context: safe to free DMA memory directly */
+ 					dw_edma_free_dma_mem(chan->chip->dev, &child->host_region, child->is_buddy);
+ 				}
+ 			}
+@@ -435,7 +450,6 @@ void dw_edma_free_chunk(struct dw_edma_desc *desc)
+ 				pr_debug_ratelimited("Skipping head DMA free in atomic context\n");
+ 				/* Keep vaddr intact */
+ 			} else {
+-				/* Process context: safe to free */
+ 				dw_edma_free_dma_mem(chan->chip->dev, &desc->chunk->host_region, desc->chunk->is_buddy);
+ 			}
+ 		}
+@@ -459,8 +473,6 @@ struct dw_edma_desc *dw_edma_alloc_desc(struct dw_edma_chan *chan)
+ 	}
+ 
+ 	desc->chan = chan;
+-	INIT_LIST_HEAD(&desc->pending_free_chunks);
+-	INIT_WORK(&desc->cleanup_work, dw_edma_desc_cleanup_work);
+ 	if (!dw_edma_alloc_chunk(desc)) {
+ 		if (desc->from_pool) {
+ 			spin_lock_irqsave(&dw->pool_lock, flags);
+@@ -510,14 +522,6 @@ void dw_edma_free_desc(struct dw_edma_desc *desc)
+ 		dev_vdbg(&dw->pdev->dev, "[MEM][DESC] Summary: Chunks(P:%d/D:%d) Bursts(P:%d/D:%d)\n", c_pool, c_dyn, b_pool, b_dyn);
+ 	}
+ 
+-	/* Cancel any pending cleanup work */
+-	cancel_work_sync(&desc->cleanup_work);
+-	
+-	/* Manually trigger cleanup if there are pending chunks */
+-	if (!list_empty(&desc->pending_free_chunks)) {
+-		dw_edma_desc_cleanup_work(&desc->cleanup_work);
+-	}
+-
+ 	dw_edma_free_chunk(desc);
+ 	
+ 	if (desc->from_pool) {
+@@ -532,27 +536,26 @@ void dw_edma_free_desc(struct dw_edma_desc *desc)
+ }
+ EXPORT_SYMBOL_GPL(dw_edma_free_desc);
+ 
+-/* Descriptor-specific cleanup work (runs in process context) */
+-void dw_edma_desc_cleanup_work(struct work_struct *work)
++static void dw_edma_cleanup_work(struct work_struct *work)
+ {
+-	struct dw_edma_desc *desc = container_of(work, struct dw_edma_desc, cleanup_work);
++	struct dw_edma *dw = container_of(work, struct dw_edma, cleanup_work);
+ 	struct dw_edma_chunk *chunk, *tmp;
+-	struct device *dev = desc->chan->chip->dev;
++	struct device *dev = &dw->pdev->dev;
++	LIST_HEAD(cleanup_list);
++	unsigned long flags;
+ 	
+-	dev_vdbg(dev, "[MEM][DESC] Cleanup Work: desc=%p\n", desc);
++	spin_lock_irqsave(&dw->cleanup_lock, flags);
++	list_splice_tail_init(&dw->cleanup_chunks, &cleanup_list);
++	spin_unlock_irqrestore(&dw->cleanup_lock, flags);
+ 
+-	/* Free all non-pool chunks for this descriptor */
+-	list_for_each_entry_safe(chunk, tmp, &desc->pending_free_chunks, list) {
++	list_for_each_entry_safe(chunk, tmp, &cleanup_list, list) {
+ 		if (chunk->host_region.vaddr) {
+ 			dw_edma_free_dma_mem(dev, &chunk->host_region, chunk->is_buddy);
+ 		}
+ 		list_del(&chunk->list);
+ 		kfree(chunk);
+ 	}
+-	
+-	pr_debug("Freed non-pool chunks for descriptor %p\n", desc);
+ }
+-EXPORT_SYMBOL_GPL(dw_edma_desc_cleanup_work);
+ 
+ int dw_edma_mem_init(struct dw_edma *dw)
+ {
+@@ -561,6 +564,9 @@ int dw_edma_mem_init(struct dw_edma *dw)
+ 
+ 	/* Initialize Global Memory Pools */
+ 	spin_lock_init(&dw->pool_lock);
++	spin_lock_init(&dw->cleanup_lock);
++	INIT_LIST_HEAD(&dw->cleanup_chunks);
++	INIT_WORK(&dw->cleanup_work, dw_edma_cleanup_work);
+ 
+ 	/* 1. Allocate Global Chunk Pool (32MB CMA) */
+ 	dw->chunk_pool = devm_kcalloc(dev, EDMA_GLOBAL_CHUNK_POOL_SIZE, sizeof(struct dw_edma_chunk), GFP_KERNEL);
+@@ -652,6 +658,8 @@ void dw_edma_mem_deinit(struct dw_edma *dw)
+ 	struct device *dev = &dw->pdev->dev;
+ 
+ 	dev_vdbg(dev, "[MEM][DEINIT] De-initializing memory pools\n");
++	cancel_work_sync(&dw->cleanup_work);
++	dw_edma_cleanup_work(&dw->cleanup_work);
+ 
+ 	/* Free Global Chunk Pool DMA buffers */
+ 	if (dw->chunk_pool) {
+diff --git a/pci_deepx/dw-edma-mem.h b/pci_deepx/dw-edma-mem.h
+index b57da50..26d82a1 100644
+--- a/pci_deepx/dw-edma-mem.h
++++ b/pci_deepx/dw-edma-mem.h
+@@ -14,6 +14,7 @@ void dw_edma_mem_deinit(struct dw_edma *dw);
+ 
+ struct dw_edma_chunk *dw_edma_alloc_chunk(struct dw_edma_desc *desc);
+ void dw_edma_free_chunk(struct dw_edma_desc *desc);
++void dw_edma_defer_chunk_free(struct dw_edma_chan *chan, struct dw_edma_chunk *chunk);
+ 
+ struct dw_edma_burst *dw_edma_alloc_burst(struct dw_edma_chunk *chunk);
+ void dw_edma_free_burst(struct dw_edma_chunk *chunk);
+diff --git a/pci_deepx/include/dw-edma-core.h b/pci_deepx/include/dw-edma-core.h
+index dc52d47..93bee52 100644
+--- a/pci_deepx/include/dw-edma-core.h
++++ b/pci_deepx/include/dw-edma-core.h
+@@ -136,10 +136,6 @@ struct dw_edma_desc {
+ 	u32						alloc_sz;
+ 	u32						xfer_sz;
+ 	bool					from_pool;
+-	
+-	/* Deferred cleanup for non-pool chunks */
+-	struct list_head		pending_free_chunks;
+-	struct work_struct		cleanup_work;
+ };
+ 
+ /*
+@@ -240,6 +236,9 @@ struct dw_edma {
+ 	int						burst_free_cnt;
+ 
+ 	spinlock_t				pool_lock; /* Protects all global pools */
++	spinlock_t				cleanup_lock; /* Protects deferred chunk cleanup list */
++	struct list_head		cleanup_chunks;
++	struct work_struct		cleanup_work;
+ 
+ 	u16							dx_ver;			/* DXNN Version */
+ 	u16							user_bar_cnt;
+-- 
+2.53.0
+
